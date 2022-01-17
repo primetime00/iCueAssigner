@@ -16,6 +16,7 @@ _failures = []
 _failureFunction = None
 _requestFunc = None
 _instanceList = []
+_lookPaths = [Path(__file__).parent.parent.parent.joinpath(USER_DIR), Path(__file__).parent.parent.parent.joinpath('personal').joinpath(USER_DIR)]
 
 def get_class_that_defined_method(meth):
     if isinstance(meth, functools.partial):
@@ -53,14 +54,18 @@ def createWatcher():
     eventHandler = PatternMatchingEventHandler(['*.py'], None, True, False)
     eventHandler.on_any_event = onFileChanged
     _fileObserver = Observer()
-    path = Path(__file__).parent.parent.parent.joinpath(USER_DIR)
-    _fileObserver.schedule(eventHandler, str(path), recursive=False)
+    for path in _lookPaths:
+        if (path.exists()):
+            _fileObserver.schedule(eventHandler, str(path), recursive=False)
     _fileObserver.start()
 
 
 def getFailures():
     return _failures
 
+def getModPath(path):
+    modPathParts = [x for x in path.parts[1+path.parts.index('app'):]]
+    return ".".join(modPathParts)
 
 def fillResponderMap(failFunc=None):
     global _failures, _failureFunction, responderModules, _instanceList
@@ -84,16 +89,19 @@ def fillResponderMap(failFunc=None):
 
     modList = []
 
-    for f in Path(__file__).parent.parent.parent.joinpath(USER_DIR).glob("*.py"):
-        if "__" in f.stem:
-            continue
-        modName =  USER_DIR + f".{f.stem}"
-        if modName in sys.modules:
-            del sys.modules[modName]
-        try:
-            modList.append(import_module(modName, USER_DIR))
-        except Exception as e:
-            _failures.append(traceback.format_exc(1))
+
+    for path in _lookPaths:
+        modPath = getModPath(path)
+        for f in path.glob("*.py"):
+            if "__" in f.stem:
+                continue
+            modName =  modPath + f".{f.stem}"
+            if modName in sys.modules:
+                del sys.modules[modName]
+            try:
+                modList.append(import_module(modName, modPath))
+            except Exception as e:
+                _failures.append(traceback.format_exc(1))
     #del import_module, Path
 
     gc.collect()

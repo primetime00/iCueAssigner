@@ -1,4 +1,9 @@
 # created by virtualenv automatically
 active.py
-shortcuts
-shortcuts/*
+personal
+personal/*
+install.py
+build
+build/*
+dist
+dist/*

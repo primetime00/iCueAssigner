@@ -4,6 +4,7 @@ from modules.event import Button, Type
 from win32api import GetKeyState
 from win32con import VK_NUMLOCK
 from modules.window import Window
+from modules.utils import ProcessExist
 from pathlib import Path
 import os
 
@@ -21,6 +22,9 @@ class Default():
                 Button.G1: {
                     Type.LONGPRESS: {'function': self.runNotepad, 'help': 'Open Notepad++'},
                 },
+                Button.G2: {
+                    Type.LONGPRESS: {'function': self.runCalc, 'help': 'Open Calculator'},
+                },
                 Button.G6: {
                     Type.LONGPRESS: {'function': self.openShortcuts, 'help': 'Open Common Shortcuts'},
                 },
@@ -29,6 +33,13 @@ class Default():
 
     def runNotepad(self, *args):
         subprocess.Popen([r'C:\Program Files (x86)\Notepad++\notepad++.exe', '-nosession'])
+
+    def runCalc(self, *aregs):
+        if not ProcessExist('win32calc.exe'):
+            windir = os.getenv('windir')
+            subprocess.Popen([r'{}\system32\win32calc.exe'.format(windir)])
+        else:
+            window.ShowWindow('Calculator', 1000).join()
 
     def moveWindow(self, *args):
         hasNum = GetKeyState(VK_NUMLOCK) == 1
@@ -40,12 +51,13 @@ class Default():
         pass
 
     def openShortcuts(self, *args):
-        directory = Path(__file__).parent.parent.absolute()
-        directory = Path(directory, 'shortcuts')
-        if not directory.exists():
-            return
-        os.startfile(str(directory))
-        window.ShowWindowAndMove('shortcuts', 1, 100, 100, 2000, 1000).join()
+        tryDirs = [Path(__file__).parent.parent.joinpath('personal/shortcuts'), Path(__file__).parent.parent.joinpath('shortcuts')]
+        for directory in tryDirs:
+            if not directory.exists():
+                continue
+            os.startfile(str(directory))
+            window.ShowWindowAndMove('shortcuts', 1, 100, 100, 2000, 1000).join()
+            break
 
 
 

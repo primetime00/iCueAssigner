@@ -132,7 +132,7 @@ class iCue:
         tid, pid = GetWindowThreadProcessId(fw)
         try:
             proc = psutil.Process(pid=pid)
-        except psutil.NoSuchProcess:
+        except Exception:
             return None, None
         return proc.name(), GetWindowText(fw)
 
