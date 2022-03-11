@@ -1,7 +1,9 @@
-import time
+import time, copy
 from importlib import import_module
 import inspect, functools, sys
 from modules.constants import DEFAULT_KEYS, USER_DIR
+from modules.event import Button, Type
+import modules.utils
 import traceback
 import gc
 
@@ -16,7 +18,9 @@ _failures = []
 _failureFunction = None
 _requestFunc = None
 _instanceList = []
-_lookPaths = [Path(__file__).parent.parent.parent.joinpath(USER_DIR), Path(__file__).parent.parent.parent.joinpath('personal').joinpath(USER_DIR)]
+_personalPath = Path(__file__).parent.parent.parent.joinpath('personal').joinpath(USER_DIR)
+_userPath = Path(__file__).parent.parent.parent.joinpath(USER_DIR)
+_lookPaths = [_userPath, _personalPath]
 
 def get_class_that_defined_method(meth):
     if isinstance(meth, functools.partial):
@@ -64,8 +68,56 @@ def getFailures():
     return _failures
 
 def getModPath(path):
-    modPathParts = [x for x in path.parts[1+path.parts.index('app'):]]
+
+    appIndex = path.parts.index('app') if 'app' in path.parts else 0
+    iqueIndex = [path.parts.index(x) for x in path.parts if 'iCue Assigner' in x]
+    iqueIndex = iqueIndex[0] if len(iqueIndex) > 0 else 0
+    modPathParts = [x for x in path.parts[1+max(appIndex, iqueIndex):]]
     return ".".join(modPathParts)
+
+
+def hasSpecial(mapData):
+    functions = mapData['functions']
+    for btn, data in functions.items():
+        if btn == Button.ALL:
+            return True
+        for btnType, func in data.items():
+            if btnType == Type.ALL_KEYS:
+                return True
+    return False
+
+def processFunctions(mapData):
+    if not hasSpecial(mapData):
+        return
+    functions = mapData['functions']
+    special = copy.deepcopy(functions)
+    for btn, data in functions.items():
+        if btn == Button.ALL:
+            for b in Button.getButtons():
+                if b not in special:
+                    special[b] = {}
+                for btnType, func in data.items():
+                    if btnType == Type.ALL_KEYS:
+                        for t in Type.getButtonTypes():
+                            if t not in special[b]:
+                                special[b][t] = func
+                        if btnType in special[b]:
+                            del special[b][btnType]
+                    else:
+                        if btnType not in special[b]:
+                            special[b][btnType] = func
+            del special[btn]
+        else:
+            for btnType, func in data.items():
+                if btnType == Type.ALL_KEYS:
+                    if btn not in special:
+                        special[btn] = {}
+                    for t in Type.getButtonTypes():
+                        if t not in special[btn]:
+                            special[btn][t] = func
+                    del special[btn][btnType]
+    mapData['functions'] = special
+
 
 def fillResponderMap(failFunc=None):
     global _failures, _failureFunction, responderModules, _instanceList
@@ -99,14 +151,17 @@ def fillResponderMap(failFunc=None):
             if modName in sys.modules:
                 del sys.modules[modName]
             try:
-                modList.append(import_module(modName, modPath))
+                mp = import_module(modName, modPath)
+                modList.append((mp, f))
             except Exception as e:
                 _failures.append(traceback.format_exc(1))
     #del import_module, Path
 
     gc.collect()
 
-    for mod in modList:
+    for modPair in modList:
+        mod = modPair[0]
+        f = modPair[1]
         classList = [x[1] for x in inspect.getmembers(mod, inspect.isclass) if x[1].__module__ == mod.__name__]
         for cls in classList:
             instance = cls()
@@ -118,15 +173,17 @@ def fillResponderMap(failFunc=None):
                 continue
             if 'functions' not in keyMapData:
                 continue
+            keyMapData['file'] = f
+            processFunctions(keyMapData)
             if 'process' in keyMapData:
                 procData = keyMapData['process']
                 if isinstance(procData, str):
                     procName = procData if len(procData) > 0 else DEFAULT_KEYS
-                    responderModules[procName] = {'name': keyMapData['name'], 'functions': keyMapData['functions']}
+                    responderModules[procName] = {'name': keyMapData['name'], 'functions': keyMapData['functions'], 'file': keyMapData['file']}
                 elif isinstance(procData, list) or isinstance(procData, tuple):
                     for p in procData:
                         procName = p if len(p) > 0 else DEFAULT_KEYS
-                        responderModules[procName] = {'name': keyMapData['name'], 'functions': keyMapData['functions']}
+                        responderModules[procName] = {'name': keyMapData['name'], 'functions': keyMapData['functions'], 'file': keyMapData['file']}
             del keyMapData, instance
         del classList
     del modList
@@ -137,6 +194,11 @@ def fillResponderMap(failFunc=None):
 
 def getProcessMap():
     return responderModules
+
+def getPersonalPath():
+    if _personalPath.exists():
+        return _personalPath
+    return _userPath
 
 
 

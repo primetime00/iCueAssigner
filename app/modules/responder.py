@@ -1,15 +1,23 @@
+import os.path
+import sys
+
 import pyautogui, traceback
 from modules.constants import DEFAULT_KEYS
 from modules.event import Button, Type, Event
-from modules.processes import getProcessMap, fillResponderMap, setRequestFunction
+from modules.processes import getProcessMap, fillResponderMap, setRequestFunction, getPersonalPath
 from queue import Queue
+import subprocess
 
 from modules.window import Window
+from pathlib import Path
+import re
+from modules.editor import Editor
 
 window = Window()
 
-
 class Responder:
+    templatePath = Path(__file__).parent.parent.joinpath('resource')
+
     def __init__(self, queue: Queue):
         self.funcMap = {}
         self.eventQueue = queue
@@ -89,8 +97,18 @@ class Responder:
             msg += '{}'.format(args[3])
         title = 'iCue Assigner'
         cw = window.ShowWindow(title, 1)
-        pyautogui.alert(msg, title)
+        proc = args[2]
+        editButtonText = 'Edit' if proc in getProcessMap() else 'Create'
+        res = pyautogui.confirm(msg, title, buttons=['OK', editButtonText])
         cw.join()
+        if res == editButtonText:
+            editor = Editor()
+            if proc in getProcessMap():
+                editor.open(file=getProcessMap()[proc]['file'])
+            else:
+                res = self.createNewResponder(proc, os.path.splitext(proc)[0])
+                if res:
+                    editor.open(file=res)
 
     def showErrors(self, errors):
         msg = ""
@@ -103,3 +121,39 @@ class Responder:
         cw = window.ShowWindow(title, 1)
         pyautogui.alert(msg, title)
         cw.join()
+
+    def createNewResponder(self, process, name):
+        i = 0
+        base = self.camelCase(os.path.splitext(process)[0]).lower()
+        fname = base + '.py'
+        fpath = getPersonalPath().joinpath(fname)
+        while fpath.exists():
+            i += 1
+            fname = base + '_' + i + '.py'
+            fpath = getPersonalPath().joinpath(fname)
+
+        if not self.templatePath.exists():
+            print('Could not find template path', self.templatePath)
+            return None
+        templateFile = self.templatePath.joinpath('template.dat')
+        if not templateFile.exists():
+            print('Could not find template file')
+            return None
+        with open(templateFile, 'rt') as tmpFile:
+            tempData = tmpFile.read()
+            cname = self.camelCase(os.path.splitext(process)[0]).capitalize()
+            tempData = tempData.replace('~CLASS~', cname)
+            tempData = tempData.replace('~NAME~', name)
+            tempData = tempData.replace('~PROCESS~', process)
+            with open(fpath, 'wt') as dstFile:
+                dstFile.write(tempData)
+        return fpath
+
+    def camelCase(self, tag_str):
+        words = re.findall(r'\w+', tag_str)
+        nwords = len(words)
+        if nwords == 1:
+            return words[0]  # leave unchanged
+        elif nwords > 1:  # make it camelCaseTag
+            return words[0].lower() + ''.join(map(str.title, words[1:]))
+        return ''  # no word characters

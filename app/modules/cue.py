@@ -3,13 +3,12 @@ import sched, time, threading, random
 import cuesdk
 from cuesdk import CueSdk
 from queue import Queue
-from win32process import GetWindowThreadProcessId
-from win32gui import GetWindowText, GetForegroundWindow
-import psutil
-
+from modules.utils import GetWindowInfo
 from modules.event import Event, Button, Type
 from modules.responder import Responder
 from modules.constants import LONGPRESS_TIME
+import modules.network as network
+from modules.network.pipe_server import pipe_servers
 
 class iCue:
     def __init__(self):
@@ -19,7 +18,6 @@ class iCue:
         self.scheduler = sched.scheduler(time.time, time.sleep)
         self.schedulerThread = threading.Thread(target=self.scheduleWorker, args=())
         self.eventQueue = Queue()
-
         self.sdk = CueSdk()
         self.deviceCount = 0
         self.currentKeys = {}
@@ -57,6 +55,10 @@ class iCue:
         print("Closing SDK")
         self.sdk.unsubscribe_from_events()
         self.quit = True
+        network.server.stop()
+        for name, pipe in pipe_servers.items():
+            pipe.stop()
+
         self.schedulerEvent.set()
 
     def displayInfo(self):
@@ -99,13 +101,14 @@ class iCue:
 
 
     def loop(self):
+        network.server.start()
         while not self.quit:
             try:
                 item = self.eventQueue.get(timeout=0.5)
             except queue.Empty:
                 continue
             if self.responder:
-                proc, text = self.getWindowInfo()
+                proc, text = GetWindowInfo()
                 type = item.getType()
                 button = item.getButton()
                 if type == Type.QUIT:
@@ -126,16 +129,6 @@ class iCue:
 
     def exit(self):
         self.eventQueue.put(Event(Type.QUIT, Button.NONE))
-
-    def getWindowInfo(self):
-        fw = GetForegroundWindow()
-        tid, pid = GetWindowThreadProcessId(fw)
-        try:
-            proc = psutil.Process(pid=pid)
-        except Exception:
-            return None, None
-        return proc.name(), GetWindowText(fw)
-
 
 
 

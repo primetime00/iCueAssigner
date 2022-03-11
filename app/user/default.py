@@ -1,10 +1,10 @@
 import pyautogui
 import subprocess
 from modules.event import Button, Type
-from win32api import GetKeyState
-from win32con import VK_NUMLOCK
+from modules.utils import WithNumLock
 from modules.window import Window
 from modules.utils import ProcessExist
+from modules.editor import Editor
 from pathlib import Path
 import os
 
@@ -12,6 +12,7 @@ window = Window()
 
 class Default():
     def __init__(self):
+        self.editor = Editor()
         self.keyMap = {
             'name': 'Default',
             'process': '',
@@ -32,7 +33,7 @@ class Default():
         }
 
     def runNotepad(self, *args):
-        subprocess.Popen([r'C:\Program Files (x86)\Notepad++\notepad++.exe', '-nosession'])
+        self.editor.open()
 
     def runCalc(self, *aregs):
         if not ProcessExist('win32calc.exe'):
@@ -42,13 +43,7 @@ class Default():
             window.ShowWindow('Calculator', 1000).join()
 
     def moveWindow(self, *args):
-        hasNum = GetKeyState(VK_NUMLOCK) == 1
-        if hasNum:
-            pyautogui.press('numlock')
-        pyautogui.hotkey('shiftleft', 'shiftright', 'win', 'right')
-        if hasNum:
-            pyautogui.press('numlock')
-        pass
+        WithNumLock(lambda *a: pyautogui.hotkey('shiftleft', 'shiftright', 'win', 'right'))
 
     def openShortcuts(self, *args):
         tryDirs = [Path(__file__).parent.parent.joinpath('personal/shortcuts'), Path(__file__).parent.parent.joinpath('shortcuts')]

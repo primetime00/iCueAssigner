@@ -41,15 +41,14 @@ class Main:
         self.cue.exit()
 
     def breakHandler(self, signum, frame):
-        print(1)
         self.trayIcon.end()
-        print(2)
         self.cue.exit()
         #self.thread.join()
 
 
 s = singleton.SingleInstance()
 Main()
+
 
 
 

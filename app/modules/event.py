@@ -1,4 +1,6 @@
 from random import randint
+import jsonpickle
+
 class Type:
     LONGPRESS = 0
     KEYDOWN = 1
@@ -6,6 +8,9 @@ class Type:
     QUIT = 3
     REMOVE = 4
     RELOAD = 6
+    CLIENT_COM = 7
+    CLIENT_NET = 8
+    ALL_KEYS = 99
 
     @classmethod
     def text(cls, type):
@@ -16,6 +21,10 @@ class Type:
         elif type == cls.KEYUP:
             return 'Press'
         return ''
+
+    @classmethod
+    def getButtonTypes(cls):
+        return [Type.LONGPRESS, Type.KEYDOWN, Type.KEYUP]
 
 class Button:
     NONE = -1
@@ -38,6 +47,7 @@ class Button:
     M10 = 16
     M11 = 17
     M12 = 18
+    ALL = 99
 
     convertMap = {
         1: G1,
@@ -82,6 +92,9 @@ class Button:
     }
 
     @classmethod
+    def getButtons(cls):
+        return [x for x, y in cls.textMap.items()]
+    @classmethod
     def parse(cls, value):
         if value in cls.convertMap:
             return cls.convertMap[value]
@@ -94,10 +107,10 @@ class Button:
         return ''
 
 class Event:
-    def __init__(self, type: Type, rawButton, func=None):
-        self.button = Button.parse(rawButton)
+    def __init__(self, type: Type, button, func=None, isRaw=True, id=-1):
+        self.button = Button.parse(button) if isRaw else button
         self.type = type
-        self.id = randint(0, 100000)
+        self.id = id if id != -1 else randint(0, 100000)
         self.func = func
 
     def getButton(self):
@@ -108,3 +121,6 @@ class Event:
 
     def getId(self):
         return id
+
+
+

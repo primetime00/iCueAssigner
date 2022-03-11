@@ -3,7 +3,11 @@ active.py
 personal
 personal/*
 install.py
+clientInstall.py
 build
 build/*
 dist
 dist/*
+*.zip
+*.spec
+client_user

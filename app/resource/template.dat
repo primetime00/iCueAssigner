@@ -1,0 +1,23 @@
+import pyautogui
+from modules.event import Button, Type
+
+class ~CLASS~():
+    def __init__(self):
+        self.keyMap = {
+            'name': '~NAME~',
+            'process': '~PROCESS~',
+            'functions': {
+                Button.G1: {
+                    Type.LONGPRESS: {'function': self.stubFunc, 'help': 'This is a stub'},
+                },
+                Button.G6: {
+                    Type.KEYDOWN: {'function': self.stubFunc, 'help': 'This is a stub'},
+                },
+                Button.M12: {
+                    Type.KEYUP: {'function': lambda *args: pyautogui.hotkey('ctrl', 'home'), 'help': 'This is a stub'},
+                },
+            }
+        }
+
+    def stubFunc(self, *args):
+        pass
